@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/vmx-pso/item-service/internal/data"
+	"github.com/vmx-pso/item-service/internal/jsonlog"
 
 	_ "github.com/lib/pq"
 )
@@ -22,7 +22,7 @@ type server struct {
 	port   int
 	env    string
 	router *httprouter.Router
-	logger *log.Logger
+	logger *jsonlog.Logger
 	db     *sql.DB
 	models *data.Models
 }
@@ -32,13 +32,13 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 	if err := run(os.Args, logger); err != nil {
-		logger.Println(err)
+		logger.PrintFatal(err, nil)
 	}
 }
 
-func run(args []string, logger *log.Logger) error {
+func run(args []string, logger *jsonlog.Logger) error {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	var (
 		port         = flags.Int("port", 80, "port to listen on")
@@ -57,6 +57,7 @@ func run(args []string, logger *log.Logger) error {
 		return err
 	}
 	defer db.Close()
+	logger.PrintInfo("database connection pool established", nil)
 
 	router := httprouter.New()
 
@@ -76,7 +77,11 @@ func run(args []string, logger *log.Logger) error {
 
 	addr := fmt.Sprintf(":%d", srv.port)
 
-	logger.Printf("starting %s server on %s", srv.env, addr)
+	logger.PrintInfo("starting server", map[string]string{
+		"env":  srv.env,
+		"addr": addr,
+	})
+
 	return http.ListenAndServe(addr, srv)
 }
 

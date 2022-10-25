@@ -5,21 +5,24 @@ import (
 	"net/http"
 )
 
-func (s *server) errorLog(err error) {
-	s.logger.Println(err)
+func (s *server) errorLog(r *http.Request, err error) {
+	s.logger.PrintError(err, map[string]string{
+		"request-method": r.Method,
+		"request_url":    r.URL.String(),
+	})
 }
 
 func (s *server) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {
 	env := envelope{"error": message}
 	err := s.writeJSON(w, status, env, nil)
 	if err != nil {
-		s.errorLog(err)
+		s.errorLog(r, err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
 func (s *server) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	s.errorLog(err)
+	s.errorLog(r, err)
 
 	message := "the server encountered a problem and could not process the request"
 	s.errorResponse(w, r, http.StatusInternalServerError, message)

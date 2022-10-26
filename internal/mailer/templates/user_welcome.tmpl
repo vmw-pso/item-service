@@ -1,0 +1,23 @@
+{{define "subject"}}Welcome to IMS{{end}}
+
+{{define "plainBody"}}
+Hi,
+
+Thanks for signing up for IMS access.
+
+For future reference, your user ID is {{.ID}}.
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body>
+<p>Hi</p>
+<p>Thanks for signing up for IMS access.</p>
+<p>For future reference, your user ID is {{.ID}}.</p>
+</body>
+</html>
+{{end}}

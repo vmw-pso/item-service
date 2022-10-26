@@ -12,10 +12,12 @@ var (
 
 type Models struct {
 	Items ItemModel
+	Users UserModel
 }
 
 func NewModels(db *sql.DB) *Models {
 	return &Models{
 		Items: ItemModel{DB: db},
+		Users: UserModel{DB: db},
 	}
 }

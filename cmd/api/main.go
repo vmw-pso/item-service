@@ -12,11 +12,18 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/vmx-pso/item-service/internal/data"
 	"github.com/vmx-pso/item-service/internal/jsonlog"
+	"github.com/vmx-pso/item-service/internal/mailer"
 
 	_ "github.com/lib/pq"
 )
 
 const version = "0.0.1"
+
+type limiter struct {
+	rps     float64
+	burst   int
+	enabled bool
+}
 
 type server struct {
 	port   int
@@ -25,6 +32,8 @@ type server struct {
 	logger *jsonlog.Logger
 	db     *sql.DB
 	models *data.Models
+	mailer mailer.Mailer
+	limiter
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +56,14 @@ func run(args []string, logger *jsonlog.Logger) error {
 		maxOpenConns = flags.Int("db-max-open-conns", 25, "PostgeSQL max open connections")
 		maxIdleConns = flags.Int("db-max-idle-conns", 25, "PostgreSQL max idle connections")
 		maxIdleTime  = flags.String("db-max-idle-time", "15m", "PostreSQL max idle time")
+		rps          = flags.Float64("limiter-rps", 2, "Rate limiter maximum requests per second")
+		burst        = flags.Int("limiter-burst", 4, "Rate limiter maximum burst")
+		enabled      = flags.Bool("limiter_enabled", true, "Enable rate limited")
+		smtpHost     = flags.String("smtp-host", "smtp.mailtrap.io", "SMTP host")
+		smtpPort     = flags.Int("smtp-port", 25, "SMTP port")
+		smtpUsername = flags.String("smtp-username", "5bd3436757a4cf", "SMTP username")
+		smtpPassword = flags.String("smtp-password", "68e7ccd9cc75a8", "SMTP password")
+		smtpSender   = flags.String("smtp-sender", "IMS <no-reply@fakemail.com>", "SMTP sender")
 	)
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
@@ -68,6 +85,12 @@ func run(args []string, logger *jsonlog.Logger) error {
 		logger: logger,
 		db:     db,
 		models: data.NewModels(db),
+		mailer: mailer.New(*smtpHost, *smtpPort, *smtpUsername, *smtpPassword, *smtpSender),
+		limiter: limiter{
+			rps:     *rps,
+			burst:   *burst,
+			enabled: *enabled,
+		},
 	}
 
 	router.NotFound = http.HandlerFunc(srv.notFoundResponse)

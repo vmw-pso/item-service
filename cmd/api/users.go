@@ -53,11 +53,12 @@ func (s *server) handleRegisterUser() http.HandlerFunc {
 			return
 		}
 
-		err = s.mailer.Send(user.Email, "user_welcome.tmpl", user)
-		if err != nil {
-			s.serverErrorResponse(w, r, err)
-			return
-		}
+		s.background(func() {
+			err = s.mailer.Send(user.Email, "user_welcome.tmpl", user)
+			if err != nil {
+				s.logger.PrintError(err, nil)
+			}
+		})
 
 		err = s.writeJSON(w, http.StatusCreated, envelope{"user": user}, nil)
 		if err != nil {

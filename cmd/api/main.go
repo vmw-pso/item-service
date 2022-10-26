@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -33,6 +34,7 @@ type server struct {
 	db     *sql.DB
 	models *data.Models
 	mailer mailer.Mailer
+	wg     sync.WaitGroup
 	limiter
 }
 

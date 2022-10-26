@@ -2,16 +2,24 @@ package main
 
 import (
 	"net/http"
+
+	"github.com/julienschmidt/httprouter"
 )
 
-func (s *server) routes() {
-	s.router.HandlerFunc(http.MethodGet, "/v1/healthcheck", s.rateLimit(s.handleHealthCheck()))
+func (app *application) routes() http.Handler {
+	router := httprouter.New()
 
-	s.router.HandlerFunc(http.MethodGet, "/v1/items", s.rateLimit(s.handleListItems()))
-	s.router.HandlerFunc(http.MethodPost, "/v1/items", s.rateLimit(s.handleCreateItem()))
-	s.router.HandlerFunc(http.MethodGet, "/v1/items/:id", s.rateLimit(s.handleShowItem()))
-	s.router.HandlerFunc(http.MethodPatch, "/v1/items/:id", s.handleUpdateItem())
-	s.router.HandlerFunc(http.MethodDelete, "/v1/items/:id", s.handleDeleteItem())
+	router.NotFound = http.HandlerFunc(app.notFoundResponse)
+	router.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
+	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.handleHealthCheck())
+	router.HandlerFunc(http.MethodGet, "/v1/items", app.handleListItems())
+	router.HandlerFunc(http.MethodPost, "/v1/items", app.handleCreateItem())
+	router.HandlerFunc(http.MethodGet, "/v1/items/:id", app.handleShowItem())
+	router.HandlerFunc(http.MethodPatch, "/v1/items/:id", app.handleUpdateItem())
+	router.HandlerFunc(http.MethodDelete, "/v1/items/:id", app.handleDeleteItem())
+	router.HandlerFunc(http.MethodPost, "/v1/users", app.handleRegisterUser())
 
-	s.router.HandlerFunc(http.MethodPost, "/v1/users", s.rateLimit(s.handleRegisterUser()))
+	app.recoverPanic(app.rateLimit(router))
+
+	return router
 }

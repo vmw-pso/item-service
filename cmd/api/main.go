@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	"fmt"
-	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -20,26 +18,42 @@ import (
 
 const version = "0.0.1"
 
-type limiter struct {
+type config struct {
+	port    int
+	env     string
+	db      db
+	limiter rateLimiter
+	smtp    smtp
+}
+
+type db struct {
+	dsn          string
+	maxOpenConns int
+	maxIdleConns int
+	maxIdleTime  string
+}
+
+type rateLimiter struct {
+	enabled bool
 	rps     float64
 	burst   int
-	enabled bool
 }
 
-type server struct {
-	port   int
-	env    string
-	router *httprouter.Router
+type smtp struct {
+	host     string
+	port     int
+	username string
+	password string
+	sender   string
+}
+
+type application struct {
+	config config
+	router httprouter.Router
 	logger *jsonlog.Logger
-	db     *sql.DB
-	models *data.Models
+	models data.Models
 	mailer mailer.Mailer
 	wg     sync.WaitGroup
-	limiter
-}
-
-func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.router.ServeHTTP(w, r)
 }
 
 func main() {
@@ -71,6 +85,29 @@ func run(args []string, logger *jsonlog.Logger) error {
 		return err
 	}
 
+	cfg := config{
+		port: *port,
+		env:  *env,
+		db: db{
+			dsn:          *dsn,
+			maxOpenConns: *maxOpenConns,
+			maxIdleConns: *maxIdleConns,
+			maxIdleTime:  *maxIdleTime,
+		},
+		limiter: rateLimiter{
+			enabled: *enabled,
+			rps:     *rps,
+			burst:   *burst,
+		},
+		smtp: smtp{
+			host:     *smtpHost,
+			port:     *smtpPort,
+			username: *smtpUsername,
+			password: *smtpPassword,
+			sender:   *smtpSender,
+		},
+	}
+
 	db, err := openDB(*dsn, *maxOpenConns, *maxIdleConns, *maxIdleTime)
 	if err != nil {
 		return err
@@ -78,36 +115,17 @@ func run(args []string, logger *jsonlog.Logger) error {
 	defer db.Close()
 	logger.PrintInfo("database connection pool established", nil)
 
-	router := httprouter.New()
-
-	srv := &server{
-		port:   *port,
-		env:    *env,
-		router: router,
+	app := &application{
+		config: cfg,
+		router: *httprouter.New(),
 		logger: logger,
-		db:     db,
-		models: data.NewModels(db),
-		mailer: mailer.New(*smtpHost, *smtpPort, *smtpUsername, *smtpPassword, *smtpSender),
-		limiter: limiter{
-			rps:     *rps,
-			burst:   *burst,
-			enabled: *enabled,
-		},
+		models: *data.NewModels(db),
+		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
 
-	router.NotFound = http.HandlerFunc(srv.notFoundResponse)
-	router.MethodNotAllowed = http.HandlerFunc(srv.methodNotAllowedResponse)
+	app.routes()
 
-	srv.routes()
-
-	addr := fmt.Sprintf(":%d", srv.port)
-
-	logger.PrintInfo("starting server", map[string]string{
-		"env":  srv.env,
-		"addr": addr,
-	})
-
-	return http.ListenAndServe(addr, srv)
+	return app.serve()
 }
 
 func openDB(dsn string, maxOpenConns, maxIdleConns int, maxIdleTime string) (*sql.DB, error) {

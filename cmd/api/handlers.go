@@ -4,19 +4,19 @@ import (
 	"net/http"
 )
 
-func (s *server) handleHealthCheck() http.HandlerFunc {
+func (app *application) handleHealthCheck() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		env := envelope{
 			"status": "available",
 			"system_info": map[string]string{
-				"environment": s.env,
+				"environment": app.config.env,
 				"version":     version,
 			},
 		}
 
-		err := s.writeJSON(w, http.StatusOK, env, nil)
+		err := app.writeJSON(w, http.StatusOK, env, nil)
 		if err != nil {
-			s.serverErrorResponse(w, r, err)
+			app.serverErrorResponse(w, r, err)
 		}
 	}
 }

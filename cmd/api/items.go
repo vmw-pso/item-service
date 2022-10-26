@@ -9,7 +9,7 @@ import (
 	"github.com/vmx-pso/item-service/internal/validator"
 )
 
-func (s *server) handleCreateItem() http.HandlerFunc {
+func (app *application) handleCreateItem() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var requestPayload struct {
 			Name      string     `json:"name"`
@@ -22,9 +22,9 @@ func (s *server) handleCreateItem() http.HandlerFunc {
 			Tags      []string   `json:"tags"`
 		}
 
-		err := s.readJSON(w, r, &requestPayload)
+		err := app.readJSON(w, r, &requestPayload)
 		if err != nil {
-			s.badRequestResponse(w, r, err)
+			app.badRequestResponse(w, r, err)
 			return
 		}
 
@@ -42,67 +42,67 @@ func (s *server) handleCreateItem() http.HandlerFunc {
 		v := validator.New()
 
 		if data.ValidateItem(v, item); !v.Valid() {
-			s.failedValidationResponse(w, r, v.Errors)
+			app.failedValidationResponse(w, r, v.Errors)
 			return
 		}
 
-		err = s.models.Items.Insert(item)
+		err = app.models.Items.Insert(item)
 		if err != nil {
-			s.serverErrorResponse(w, r, err)
+			app.serverErrorResponse(w, r, err)
 			return
 		}
 
 		headers := make(http.Header)
 		headers.Set("Location", fmt.Sprintf("/v1/items/%d", item.ID))
 
-		err = s.writeJSON(w, http.StatusCreated, envelope{"item": item}, headers)
+		err = app.writeJSON(w, http.StatusCreated, envelope{"item": item}, headers)
 		if err != nil {
-			s.serverErrorResponse(w, r, err)
+			app.serverErrorResponse(w, r, err)
 		}
 	}
 }
 
-func (s *server) handleShowItem() http.HandlerFunc {
+func (app *application) handleShowItem() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := s.readIDParam(r)
+		id, err := app.readIDParam(r)
 		if err != nil || id < 1 {
-			s.notFoundResponse(w, r)
+			app.notFoundResponse(w, r)
 			return
 		}
 
-		item, err := s.models.Items.Get(id)
+		item, err := app.models.Items.Get(id)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrNoRecord):
-				s.notFoundResponse(w, r)
+				app.notFoundResponse(w, r)
 			default:
-				s.serverErrorResponse(w, r, err)
+				app.serverErrorResponse(w, r, err)
 			}
 			return
 		}
 
-		err = s.writeJSON(w, http.StatusOK, envelope{"item": item}, nil)
+		err = app.writeJSON(w, http.StatusOK, envelope{"item": item}, nil)
 		if err != nil {
-			s.serverErrorResponse(w, r, err)
+			app.serverErrorResponse(w, r, err)
 		}
 	}
 }
 
-func (s *server) handleUpdateItem() http.HandlerFunc {
+func (app *application) handleUpdateItem() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := s.readIDParam(r)
+		id, err := app.readIDParam(r)
 		if err != nil || id < 1 {
-			s.notFoundResponse(w, r)
+			app.notFoundResponse(w, r)
 			return
 		}
 
-		item, err := s.models.Items.Get(id)
+		item, err := app.models.Items.Get(id)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrNoRecord):
-				s.notFoundResponse(w, r)
+				app.notFoundResponse(w, r)
 			default:
-				s.serverErrorResponse(w, r, err)
+				app.serverErrorResponse(w, r, err)
 			}
 			return
 		}
@@ -119,9 +119,9 @@ func (s *server) handleUpdateItem() http.HandlerFunc {
 			Archived  *bool       `json:"archived"`
 		}
 
-		err = s.readJSON(w, r, &requestPayload)
+		err = app.readJSON(w, r, &requestPayload)
 		if err != nil {
-			s.badRequestResponse(w, r, err)
+			app.badRequestResponse(w, r, err)
 			return
 		}
 
@@ -164,55 +164,55 @@ func (s *server) handleUpdateItem() http.HandlerFunc {
 		v := validator.New()
 
 		if data.ValidateItem(v, item); !v.Valid() {
-			s.failedValidationResponse(w, r, v.Errors)
+			app.failedValidationResponse(w, r, v.Errors)
 			return
 		}
 
-		err = s.models.Items.Update(item)
+		err = app.models.Items.Update(item)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrEditConflict):
-				s.editConflictResponse(w, r)
+				app.editConflictResponse(w, r)
 			default:
-				s.serverErrorResponse(w, r, err)
+				app.serverErrorResponse(w, r, err)
 			}
 			return
 		}
 
-		err = s.writeJSON(w, http.StatusOK, envelope{"item": item}, nil)
+		err = app.writeJSON(w, http.StatusOK, envelope{"item": item}, nil)
 		if err != nil {
-			s.serverErrorResponse(w, r, err)
+			app.serverErrorResponse(w, r, err)
 		}
 	}
 }
 
-func (s *server) handleDeleteItem() http.HandlerFunc {
+func (app *application) handleDeleteItem() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := s.readIDParam(r)
+		id, err := app.readIDParam(r)
 		if err != nil || id < 1 {
-			s.notFoundResponse(w, r)
+			app.notFoundResponse(w, r)
 			return
 		}
 
-		err = s.models.Items.Delete(id)
+		err = app.models.Items.Delete(id)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrNoRecord):
-				s.notFoundResponse(w, r)
+				app.notFoundResponse(w, r)
 			default:
-				s.serverErrorResponse(w, r, err)
+				app.serverErrorResponse(w, r, err)
 			}
 			return
 		}
 
-		err = s.writeJSON(w, http.StatusOK, envelope{"message": "successfully deleted"}, nil)
+		err = app.writeJSON(w, http.StatusOK, envelope{"message": "successfully deleted"}, nil)
 		if err != nil {
-			s.serverErrorResponse(w, r, err)
+			app.serverErrorResponse(w, r, err)
 		}
 	}
 }
 
-func (s *server) handleListItems() http.HandlerFunc {
+func (app *application) handleListItems() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var requestPayload struct {
 			Name     string
@@ -225,28 +225,28 @@ func (s *server) handleListItems() http.HandlerFunc {
 
 		qs := r.URL.Query()
 
-		requestPayload.Name = s.readString(qs, "name", "")
-		requestPayload.Supplier = s.readInt(qs, "supplier", 0, v)
-		requestPayload.Tags = s.readCSV(qs, "tags", []string{})
-		requestPayload.Filters.Page = s.readInt(qs, "page", 1, v)
-		requestPayload.Filters.PageSize = s.readInt(qs, "page_size", 20, v)
-		requestPayload.Filters.Sort = s.readString(qs, "sort", "id")
+		requestPayload.Name = app.readString(qs, "name", "")
+		requestPayload.Supplier = app.readInt(qs, "supplier", 0, v)
+		requestPayload.Tags = app.readCSV(qs, "tags", []string{})
+		requestPayload.Filters.Page = app.readInt(qs, "page", 1, v)
+		requestPayload.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+		requestPayload.Filters.Sort = app.readString(qs, "sort", "id")
 		requestPayload.Filters.SortSafelist = []string{"id", "name", "model", "supplier", "price", "-id", "-name", "-model", "-price"}
 
 		if data.ValidateFilters(v, requestPayload.Filters); !v.Valid() {
-			s.failedValidationResponse(w, r, v.Errors)
+			app.failedValidationResponse(w, r, v.Errors)
 			return
 		}
 
-		items, metadata, err := s.models.Items.GetAll(requestPayload.Name, requestPayload.Supplier, requestPayload.Tags, requestPayload.Filters)
+		items, metadata, err := app.models.Items.GetAll(requestPayload.Name, requestPayload.Supplier, requestPayload.Tags, requestPayload.Filters)
 		if err != nil {
-			s.serverErrorResponse(w, r, err)
+			app.serverErrorResponse(w, r, err)
 			return
 		}
 
-		err = s.writeJSON(w, http.StatusOK, envelope{"items": items, "metadata": metadata}, nil)
+		err = app.writeJSON(w, http.StatusOK, envelope{"items": items, "metadata": metadata}, nil)
 		if err != nil {
-			s.serverErrorResponse(w, r, err)
+			app.serverErrorResponse(w, r, err)
 		}
 	}
 }

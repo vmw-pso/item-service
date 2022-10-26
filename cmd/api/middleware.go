@@ -10,20 +10,20 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func (s *server) recoverPanic(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (app *application) recoverPanic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
 				w.Header().Set("Connection", "close")
-				s.serverErrorResponse(w, r, fmt.Errorf("%s", err))
+				app.serverErrorResponse(w, r, fmt.Errorf("%s", err))
 			}
 		}()
 
-		next(w, r)
-	}
+		next.ServeHTTP(w, r)
+	})
 }
 
-func (s *server) rateLimit(next http.HandlerFunc) http.HandlerFunc {
+func (app *application) rateLimit(next http.Handler) http.Handler {
 	type client struct {
 		limiter  *rate.Limiter
 		lastSeen time.Time
@@ -47,11 +47,11 @@ func (s *server) rateLimit(next http.HandlerFunc) http.HandlerFunc {
 		}
 	}()
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		if s.limiter.enabled {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if app.config.limiter.enabled {
 			ip, _, err := net.SplitHostPort(r.RemoteAddr)
 			if err != nil {
-				s.serverErrorResponse(w, r, err)
+				app.serverErrorResponse(w, r, err)
 				return
 			}
 
@@ -65,13 +65,13 @@ func (s *server) rateLimit(next http.HandlerFunc) http.HandlerFunc {
 
 			if !clients[ip].limiter.Allow() {
 				mu.Unlock()
-				s.rateLimitExceededResponse(w, r)
+				app.rateLimitExceededResponse(w, r)
 				return
 			}
 
 			mu.Unlock()
 
-			next(w, r)
+			next.ServeHTTP(w, r)
 		}
-	}
+	})
 }

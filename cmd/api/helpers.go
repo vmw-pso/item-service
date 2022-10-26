@@ -16,7 +16,7 @@ import (
 
 type envelope map[string]any
 
-func (s *server) readIDParam(r *http.Request) (int64, error) {
+func (app *application) readIDParam(r *http.Request) (int64, error) {
 	params := httprouter.ParamsFromContext(r.Context())
 
 	id, err := strconv.ParseInt(params.ByName("id"), 10, 64)
@@ -26,7 +26,7 @@ func (s *server) readIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
-func (s *server) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	maxBytes := 1024 * 1024 // 1 MB
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
 
@@ -71,7 +71,7 @@ func (s *server) readJSON(w http.ResponseWriter, r *http.Request, dst any) error
 	return nil
 }
 
-func (s *server) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	js, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func (s *server) writeJSON(w http.ResponseWriter, status int, data envelope, hea
 	return nil
 }
 
-func (s *server) readString(qs url.Values, key string, defaultValue string) string {
+func (app *application) readString(qs url.Values, key string, defaultValue string) string {
 	str := qs.Get(key)
 	if str == "" {
 		return defaultValue
@@ -98,7 +98,7 @@ func (s *server) readString(qs url.Values, key string, defaultValue string) stri
 	return str
 }
 
-func (s *server) readCSV(qs url.Values, key string, defaultValue []string) []string {
+func (app *application) readCSV(qs url.Values, key string, defaultValue []string) []string {
 	csv := qs.Get(key)
 	if csv == "" {
 		return defaultValue
@@ -106,7 +106,7 @@ func (s *server) readCSV(qs url.Values, key string, defaultValue []string) []str
 	return strings.Split(csv, ",")
 }
 
-func (s *server) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
 	value := qs.Get(key)
 	if value == "" {
 		return defaultValue
@@ -120,14 +120,14 @@ func (s *server) readInt(qs url.Values, key string, defaultValue int, v *validat
 	return i
 }
 
-func (s *server) background(fn func()) {
-	s.wg.Add(1)
+func (app *application) background(fn func()) {
+	app.wg.Add(1)
 	go func() {
-		defer s.wg.Done()
+		defer app.wg.Done()
 
 		defer func() {
 			if err := recover(); err != nil {
-				s.logger.PrintError(fmt.Errorf("%s", err), nil)
+				app.logger.PrintError(fmt.Errorf("%s", err), nil)
 			}
 		}()
 

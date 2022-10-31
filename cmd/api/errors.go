@@ -66,3 +66,18 @@ func (app *application) invalidAuthenticationHeader(w http.ResponseWriter, r *ht
 	message := "invalid or missin token"
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
+
+func (app *application) authenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
+	message := "must be authenticated to access this resource"
+	app.errorResponse(w, r, http.StatusUnauthorized, message)
+}
+
+func (app *application) inactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
+	message := "user account must be activated to access this resource"
+	app.errorResponse(w, r, http.StatusUnauthorized, message)
+}
+
+func (app *application) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
+	message := "user account does not have the necessary permissions to access this resource"
+	app.errorResponse(w, r, http.StatusForbidden, message)
+}

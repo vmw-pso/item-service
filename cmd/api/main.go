@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,11 @@ type config struct {
 	db      db
 	limiter rateLimiter
 	smtp    smtp
+	cors    cors
+}
+
+type cors struct {
+	trustedOrigins []string
 }
 
 type db struct {
@@ -64,6 +70,7 @@ func main() {
 }
 
 func run(args []string, logger *jsonlog.Logger) error {
+	var corsTrustedOrigins []string
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	var (
 		port         = flags.Int("port", 80, "port to listen on")
@@ -81,6 +88,10 @@ func run(args []string, logger *jsonlog.Logger) error {
 		smtpPassword = flags.String("smtp-password", "68e7ccd9cc75a8", "SMTP password")
 		smtpSender   = flags.String("smtp-sender", "IMS <no-reply@fakemail.com>", "SMTP sender")
 	)
+	flags.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
+		corsTrustedOrigins = strings.Fields(val)
+		return nil
+	})
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -105,6 +116,9 @@ func run(args []string, logger *jsonlog.Logger) error {
 			username: *smtpUsername,
 			password: *smtpPassword,
 			sender:   *smtpSender,
+		},
+		cors: cors{
+			trustedOrigins: corsTrustedOrigins,
 		},
 	}
 

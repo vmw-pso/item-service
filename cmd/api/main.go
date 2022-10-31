@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -75,27 +76,34 @@ func run(args []string, logger *jsonlog.Logger) error {
 	var corsTrustedOrigins []string
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	var (
-		port         = flags.Int("port", 80, "port to listen on")
-		env          = flags.String("env", "development", "Environment (development|staging|production")
-		dsn          = flags.String("dsn", "postgres://postgres:password@localhost/items?sslmode=disable", "PostreSQL DSN") // move to env variable later
-		maxOpenConns = flags.Int("db-max-open-conns", 25, "PostgeSQL max open connections")
-		maxIdleConns = flags.Int("db-max-idle-conns", 25, "PostgreSQL max idle connections")
-		maxIdleTime  = flags.String("db-max-idle-time", "15m", "PostreSQL max idle time")
-		rps          = flags.Float64("limiter-rps", 2, "Rate limiter maximum requests per second")
-		burst        = flags.Int("limiter-burst", 4, "Rate limiter maximum burst")
-		enabled      = flags.Bool("limiter-enabled", true, "Enable rate limited")
-		smtpHost     = flags.String("smtp-host", "smtp.mailtrap.io", "SMTP host")
-		smtpPort     = flags.Int("smtp-port", 25, "SMTP port")
-		smtpUsername = flags.String("smtp-username", "5bd3436757a4cf", "SMTP username")
-		smtpPassword = flags.String("smtp-password", "68e7ccd9cc75a8", "SMTP password")
-		smtpSender   = flags.String("smtp-sender", "IMS <no-reply@fakemail.com>", "SMTP sender")
+		port           = flags.Int("port", 80, "port to listen on")
+		env            = flags.String("env", "development", "Environment (development|staging|production")
+		dsn            = flags.String("db-dsn", "", "PostreSQL DSN")
+		maxOpenConns   = flags.Int("db-max-open-conns", 25, "PostgeSQL max open connections")
+		maxIdleConns   = flags.Int("db-max-idle-conns", 25, "PostgreSQL max idle connections")
+		maxIdleTime    = flags.String("db-max-idle-time", "15m", "PostreSQL max idle time")
+		rps            = flags.Float64("limiter-rps", 2, "Rate limiter maximum requests per second")
+		burst          = flags.Int("limiter-burst", 4, "Rate limiter maximum burst")
+		enabled        = flags.Bool("limiter-enabled", true, "Enable rate limited")
+		smtpHost       = flags.String("smtp-host", "smtp.mailtrap.io", "SMTP host")
+		smtpPort       = flags.Int("smtp-port", 25, "SMTP port")
+		smtpUsername   = flags.String("smtp-username", "5bd3436757a4cf", "SMTP username")
+		smtpPassword   = flags.String("smtp-password", "68e7ccd9cc75a8", "SMTP password")
+		smtpSender     = flags.String("smtp-sender", "IMS <no-reply@fakemail.com>", "SMTP sender")
+		displayVersion = flags.Bool("version", false, "Display version and exit")
 	)
 	flags.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
 		corsTrustedOrigins = strings.Fields(val)
 		return nil
 	})
+
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
+	}
+
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		return nil
 	}
 
 	cfg := config{

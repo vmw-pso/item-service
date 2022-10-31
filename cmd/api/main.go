@@ -16,11 +16,10 @@ import (
 	"github.com/vmx-pso/item-service/internal/data"
 	"github.com/vmx-pso/item-service/internal/jsonlog"
 	"github.com/vmx-pso/item-service/internal/mailer"
+	"github.com/vmx-pso/item-service/internal/vcs"
 
 	_ "github.com/lib/pq"
 )
-
-const version = "0.0.1"
 
 type config struct {
 	port    int
@@ -64,6 +63,10 @@ type application struct {
 	mailer mailer.Mailer
 	wg     sync.WaitGroup
 }
+
+var (
+	version = vcs.Version()
+)
 
 func main() {
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)

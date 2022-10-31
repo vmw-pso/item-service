@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"expvar"
 	"flag"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -81,7 +83,7 @@ func run(args []string, logger *jsonlog.Logger) error {
 		maxIdleTime  = flags.String("db-max-idle-time", "15m", "PostreSQL max idle time")
 		rps          = flags.Float64("limiter-rps", 2, "Rate limiter maximum requests per second")
 		burst        = flags.Int("limiter-burst", 4, "Rate limiter maximum burst")
-		enabled      = flags.Bool("limiter_enabled", true, "Enable rate limited")
+		enabled      = flags.Bool("limiter-enabled", true, "Enable rate limited")
 		smtpHost     = flags.String("smtp-host", "smtp.mailtrap.io", "SMTP host")
 		smtpPort     = flags.Int("smtp-port", 25, "SMTP port")
 		smtpUsername = flags.String("smtp-username", "5bd3436757a4cf", "SMTP username")
@@ -129,6 +131,20 @@ func run(args []string, logger *jsonlog.Logger) error {
 	defer db.Close()
 	logger.PrintInfo("database connection pool established", nil)
 
+	expvar.NewString("version").Set(version)
+
+	expvar.Publish("goroutines", expvar.Func(func() interface{} {
+		return runtime.NumGoroutine()
+	}))
+
+	expvar.Publish("database", expvar.Func(func() interface{} {
+		return db.Stats()
+	}))
+
+	expvar.Publish("timestamp", expvar.Func(func() interface{} {
+		return time.Now().Unix()
+	}))
+
 	app := &application{
 		config: cfg,
 		router: *httprouter.New(),
@@ -136,8 +152,6 @@ func run(args []string, logger *jsonlog.Logger) error {
 		models: *data.NewModels(db),
 		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
-
-	app.routes()
 
 	return app.serve()
 }
